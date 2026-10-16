@@ -42,8 +42,10 @@ the chip marking and the official schematic used. Do not invent a revision.
   embedded 4 MB XMC flash, 2 MB AP_3v3 PSRAM, USB-Serial/JTAG mode.
 - Host user has an explicit read/write ACL on the tty; group `dialout` membership
   is not currently needed for the active desktop session.
-- **Silicon revision v0.2 is not the PCB revision.** Physical PCB identification
-  and LED behavior have not been verified by the agent.
+- **Silicon revision v0.2 is not the PCB revision.** The user identifies the
+  model as ESP32-S3-Matrix; the physical PCB revision is unmarked/unknown, not
+  confirmed as any specific revision. The user reports operating LEDs/dashboard
+  after the initial flash. Physical color ordering remains unconfirmed.
 
 ## ESP-IDF profile
 
@@ -69,10 +71,17 @@ No guaranteed board current or thermal limit is published in the cited sources.
 The firmware cap is a conservative engineering policy, not manufacturer certification.
 Do not raise it without measurements. No software thermal cutoff is claimed.
 
-Calibration: at brightness 0.03, saturation 1, choose calibration mode. Set hue
-0, 120, 240 and verify red, green, blue respectively. If red/green are swapped,
-toggle RGB ordering and repeat. Save the result for that physical board. Pixel
-mode indices 0–63 verify chain continuity and physical orientation. Neither
-calibration nor diagnostic mode changes the raw measurement algorithm.
+Use the [guided calibration procedure](color-calibration.md): three primary
+observations under the saved order, then red/green/blue/white/yellow/cyan/magenta
+verification under the proposed order. Every test uses unity gains and 2% PWM
+(5/255 at an active channel); seven matches plus explicit Save are required.
+No optical sensor is present and no automatic optical detection is claimed.
+Both RGB and GRB are supported because the official examples conflict, not
+because USB identity determines color order. Existing saved calibration is retained
+unless the user completes and saves a new calibration or explicitly changes it.
+
+Optional normal-operation RGB gains are each 0.25–2, default 1, applied after
+gamma and physical brightness before rounding/clamping to 32/255. Pixel mode
+indices 0–63 verify continuity/orientation. Raw acquisition/statistics are separate.
 
 See [validation](validation.md) for the exact remaining acceptance procedure.

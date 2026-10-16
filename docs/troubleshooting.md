@@ -43,8 +43,12 @@ forget home credentials; avoid holding it across reset unless entering the loade
 
 ## LEDs wrong color, too warm, or resets
 
-Manufacturer examples disagree about RGB/GRB; follow the low-brightness calibration
-sequence in [hardware.md](hardware.md). Geometry affects pixel placement, not
+Manufacturer examples disagree about RGB/GRB; follow the guided low-brightness
+procedure in [color-calibration.md](color-calibration.md). The old 0.1.0 dashboard
+used an independent fixed-HSL swatch; deploy the matched 0.2.0 firmware/UI update
+to see final-command RGB snapshots. Literal PWM bytes make the new swatch dim;
+it is not an optical screen/LED match. Compare physical color names during the
+workflow, not screenshot brightness. Geometry affects pixel placement, not
 uniform lamp behavior. Ensure all 64 chain indices light in diagnostic mode.
 
 Reduce brightness immediately if the board gets hot. Check actual supply/cable

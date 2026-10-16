@@ -1,16 +1,17 @@
 # Validation and release record
 
-## Completed on the development host
+## Completed on the development host / initial deployment
 
 - Official Waveshare schematic/demo inspected; matrix-specific constants
   established before driver selection. Artifact hashes in third-party notices.
 - USB `303a:1001`, `/dev/ttyACM0`, read/write permission verified.
 - Read-only esptool probe: ESP32-S3 silicon v0.2, 4 MB flash, 2 MB embedded PSRAM,
-  40 MHz crystal, native USB Serial/JTAG. No flash write/erase performed.
+  40 MHz crystal, native USB Serial/JTAG.
 - Complete 4194304-byte existing-firmware backup saved privately in `backups/`,
   with SHA-256; excluded from Git and release bundles.
 - Pinned ESP-IDF 6.1 installed through supported installer and firmware built.
-  Image approximately 881 KB; 71% of its app partition free; no PSRAM required.
+  No PSRAM required. 0.1.0 was approximately 881 KB; 0.2.0 remains within the same
+  application partition with approximately 71% free.
 - Native C++ invariants passed with UndefinedBehaviorSanitizer: hue wrapping,
   frame-independent smoothing/targets, raw bit accounting, brightness cap,
   deterministic repeatability and health-alarm behavior over 100000 words.
@@ -22,6 +23,20 @@
   clear and logout; no external requests or JS errors. Device API was mocked.
 - Shell scripts checked by ShellCheck. Local build and candidate packaging are
   automated; SPDX inventory, upstream notices and artifact checksums are included.
+- Subsequent authorized 0.1.0 flash succeeded, write hashes were verified and boot
+  logs showed the application/AP/DHCP startup. The user reports a working dashboard
+  and a screen/LED color mismatch. Model is user-confirmed; PCB revision is
+  unmarked/unknown, not a confirmed numbered revision.
+- 0.2.0 host regressions additionally cover the production final RGB frame and
+  serializer, seven primary/secondary/white vectors, gamma/PWM/gains, RGB/GRB
+  driver bytes, sparse masks, transitions, failed transmission state, user-observed
+  workflow tokens/timeouts, legacy calibration migration and NVS save failures.
+  Host NVS/RMT doubles are used, not physical optical measurements.
+- Chromium/Firefox regressions feed actual C++-serialized frame fixtures into the
+  dashboard, check raw CSS RGB including breathing/off/failure states, confirm
+  the observation/save interaction and test delayed polling/mutation races.
+- The 0.2.0 color update is **not flashed** by the development task. Physical color
+  confirmation remains outstanding. Follow [color calibration](color-calibration.md).
 
 Host tests do not establish that the physical hardware has passed acceptance.
 GitHub workflows are supplied but have not been executed on GitHub by this agent.
@@ -31,11 +46,14 @@ GitHub workflows are supplied but have not been executed on GitHub by this agent
 1. Photograph model/revision/chip markings. Confirm physical board is the documented
    Waveshare ESP32-S3-Matrix; record revision or explicitly record unmarked.
 2. Run `./tools/flash.sh`, review detected identity, retain backup and explicitly
-   confirm overwriting the target. No board has been flashed by the initial agent.
+   confirm overwriting the target. Initial 0.1.0 deployment is complete; deployment
+   of the new color update needs fresh explicit authorization.
 3. Monitor boot. Check AP credentials unique and repeatable across reboot, entropy
    readiness, RMT initialization, storage state and stable heap. Initialize storage
    explicitly only if previous partition contents prevent first mount.
-4. At brightness 0.03, verify red/green/blue using calibration; save RGB/GRB result.
+4. Run the guided 2%-PWM primary identification and seven-color verification pass
+   described in [color-calibration.md](color-calibration.md); explicitly save only
+   after observing red/green/blue/white/yellow/cyan/magenta physically matching.
    Verify all 64 chain indices/orientation; record any difference from official demo.
 5. Measure input current/voltage and board temperature at default and intended
    maximum operating brightness, including white, with radio active and final

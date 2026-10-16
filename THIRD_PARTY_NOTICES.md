@@ -44,6 +44,10 @@ This tool warning is recorded rather than silently rewriting third-party tags.
 
 ## Development-only dependencies
 
+- Native color/persistence tests fetch cJSON 1.7.19 at immutable upstream commit
+  `c859b25da02955fef659d658b8f324b5cde87be3` (MIT), matching the runtime cJSON
+  source version; the ESP registry `~2` suffix packages SDK integration. Test-only
+  NVS/RMT doubles are original MIT project code, not a hardware emulator.
 - Espressif's managed Python tools and compiler/tool binaries use their upstream
   licenses and pinned tool metadata; they are downloaded, not embedded in the UI.
 - Playwright Python 1.55.0 (Apache-2.0), pyee 13.0.1 (MIT), greenlet 3.2.5

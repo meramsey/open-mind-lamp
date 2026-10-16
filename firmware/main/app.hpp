@@ -1,5 +1,6 @@
 #pragma once
 #include "lighting/core.hpp"
+#include "lighting/calibration.hpp"
 #include "experiments/session.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -7,6 +8,8 @@ namespace oml {
 struct App {
     Settings settings;
     Walk walk;
+    RenderedColor color;
+    Calibration calibration;
     Health health;
     Session session;
     SemaphoreHandle_t mutex = nullptr;

@@ -17,12 +17,22 @@ struct Settings {
     Mode mode = Mode::Walk;
     bool enabled = true;
     bool rgb_order = false; // GRB per manufacturer's Font demo; verify calibration
+    double gain_red = 1;
+    double gain_green = 1;
+    double gain_blue = 1;
+    bool channel_order_confirmed = false; // set only by a completed observation workflow
 };
 bool valid(const Settings& s);
 double wrap(double hue);
 int net_bits(uint32_t word);
 struct RGB { uint8_t r, g, b; };
-RGB hsv(double hue, double saturation, double brightness);
+struct Channels { double r, g, b; };
+Channels hsv_channels(double hue, double saturation);
+RGB hsv(double hue, double saturation, double brightness,
+        double gain_red = 1, double gain_green = 1, double gain_blue = 1);
+// Driver is configured GRB. Adapt library arguments once for an RGB physical chain.
+RGB driver_rgb(RGB commanded, bool rgb_order);
+RGB wire_bytes(RGB commanded, bool rgb_order);
 class Walk {
     double target_ = 180, rendered_ = 180;
     int32_t accumulated_ = 0;

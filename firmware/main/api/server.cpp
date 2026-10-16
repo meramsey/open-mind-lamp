@@ -1,4 +1,5 @@
 #include "app.hpp"
+#include "color_json.hpp"
 #include "networking/network.hpp"
 #include "esp_http_server.h"
 #include "esp_app_desc.h"
@@ -14,6 +15,16 @@ extern const unsigned char js_end[] asm("_binary_app_js_end");
 extern const unsigned char css_start[] asm("_binary_style_css_start");
 extern const unsigned char css_end[] asm("_binary_style_css_end");
 static App* app;
+static bool step_request(const cJSON* j, uint32_t& run, uint32_t& step) {
+    const auto* r=cJSON_GetObjectItemCaseSensitive(j,"run_id");
+    const auto* s=cJSON_GetObjectItemCaseSensitive(j,"step");
+    const auto integer=[](const cJSON* v) {
+        return cJSON_IsNumber(v) && std::isfinite(v->valuedouble) && v->valuedouble>=0 &&
+            v->valuedouble<=UINT32_MAX && std::floor(v->valuedouble)==v->valuedouble;
+    };
+    if (!integer(r) || !integer(s)) return false;
+    run=static_cast<uint32_t>(r->valuedouble); step=static_cast<uint32_t>(s->valuedouble); return true;
+}
 static void headers(httpd_req_t* req) {
     httpd_resp_set_hdr(req,"Cache-Control","no-store");
     httpd_resp_set_hdr(req,"X-Content-Type-Options","nosniff");
@@ -94,6 +105,9 @@ static esp_err_t get(httpd_req_t* r) {
         cJSON_AddNumberToObject(j,"free_heap",esp_get_free_heap_size());
         cJSON_AddNumberToObject(j,"min_heap",esp_get_minimum_free_heap_size());
         cJSON_AddNumberToObject(j,"hue",app->walk.hue()); cJSON_AddNumberToObject(j,"target_hue",app->walk.target());
+        const auto now=esp_timer_get_time();
+        cJSON_AddItemToObject(j,"color",color_json(app->color,now));
+        cJSON_AddItemToObject(j,"calibration",calibration_json(app->calibration,app->settings,now));
         cJSON_AddNumberToObject(j,"rng_words",static_cast<double>(app->health.words));
         cJSON_AddNumberToObject(j,"rng_ones",static_cast<double>(app->health.ones));
         cJSON_AddNumberToObject(j,"missed_slots",static_cast<double>(app->missed_slots));
@@ -111,21 +125,50 @@ static esp_err_t post(httpd_req_t* r) {
     bool ok=false; const char* error="Operation unavailable or invalid parameters";
     {
         Lock lock(*app);
+        const auto now=esp_timer_get_time();
+        app->calibration.expire(now);
+        if (app->health.failed() || !entropy_ready() || !app->led_ok) app->calibration.interrupt();
         if(!std::strcmp(r->uri,"/api/settings")) {
             Settings next=app->settings;
-            if(!app->session.active() && patch_settings(j,next) && save_settings(next)) {
-                app->settings=next; ++app->revision; ok=true;
-            } else error="Settings must be in range; stop trial first; storage must be writable";
+            if(!app->session.active() && !app->calibration.active() &&
+               !cJSON_HasObjectItem(j,"channel_order_confirmed") && patch_settings(j,next)) {
+                if (next.rgb_order!=app->settings.rgb_order) next.channel_order_confirmed=false;
+                if (save_settings(next)) { app->settings=next; ++app->revision; ok=true; }
+            }
+            error="Settings must be in range; stop trial/calibration first; confirmation is workflow-only; storage must be writable";
+        } else if(!std::strcmp(r->uri,"/api/calibration/start")) {
+            if (!app->session.active() && !app->health.failed() && entropy_ready() && app->led_ok)
+                ok=app->calibration.start(app->settings.rgb_order,now);
+            error="Stop the trial first; calibration requires healthy entropy and LED transmission";
+        } else if(!std::strcmp(r->uri,"/api/calibration/observe")) {
+            uint32_t run,step; TestColor seen;
+            const auto* observation=cJSON_GetObjectItemCaseSensitive(j,"observed");
+            if (step_request(j,run,step) && cJSON_IsString(observation) && parse_color(observation->valuestring,seen))
+                ok=app->calibration.observe(run,step,seen,now);
+            error="Refresh status: observation must identify the current successfully transmitted calibration step";
+        } else if(!std::strcmp(r->uri,"/api/calibration/save")) {
+            uint32_t run,step;
+            if (step_request(j,run,step) && app->calibration.matches(run,step) &&
+                app->calibration.ready() && app->calibration.presented()) {
+                Settings next=app->settings;
+                next.rgb_order=app->calibration.candidate_order(); next.channel_order_confirmed=true;
+                if (save_settings(next)) { app->settings=next; app->calibration.saved(); ok=true; }
+            }
+            error="Confirm all seven colors first; refresh the step token; settings storage must be writable";
+        } else if(!std::strcmp(r->uri,"/api/calibration/cancel")) {
+            uint32_t run,step;
+            if (step_request(j,run,step) && app->calibration.matches(run,step)) { app->calibration.cancel(); ok=true; }
+            error="Refresh status before cancelling this calibration run";
         } else if(!std::strcmp(r->uri,"/api/session/start")) {
-            if(!app->health.failed() && entropy_ready() && app->led_ok) {
+            if(!app->calibration.active() && !app->health.failed() && entropy_ready() && app->led_ok) {
                 ok=app->session.start(j,app->settings,"esp32s3-hwrng-rf-no-sleep",app->settings.starting_hue);
                 if(ok) ++app->revision;
             }
             error="Export and clear previous trial; provide condition, direction, protocol, samples and client_utc; RNG must be healthy";
         } else if(!std::strcmp(r->uri,"/api/session/stop")) { app->session.stop("user_stopped"); ok=true;
         } else if(!std::strcmp(r->uri,"/api/session/clear")) { ok=app->session.clear();
-        } else if(!std::strcmp(r->uri,"/api/wifi")) { if(!app->session.active()) ok=network_configure(j);
-        } else if(!std::strcmp(r->uri,"/api/wifi/recover")) { if(!app->session.active()) ok=network_recover(); }
+        } else if(!std::strcmp(r->uri,"/api/wifi")) { if(!app->session.active() && !app->calibration.active()) ok=network_configure(j);
+        } else if(!std::strcmp(r->uri,"/api/wifi/recover")) { if(!app->session.active() && !app->calibration.active()) ok=network_recover(); }
     }
     cJSON_Delete(j);
     if(ok) return fail(r,"200 OK","{\"ok\":true}");

@@ -35,8 +35,9 @@ display targets. Actual accumulation/render deadlines have scheduling jitter and
 are not recorded as frame events, so the export is not a pixel-perfect animation
 replay. Scientific bit-count measurements are exactly reconstructible.
 
-HSV chromatic components receive a 2.2 gamma curve; brightness is then applied
-as a physical PWM multiplier. Saturation/brightness/visual modes never feed back
+HSV chromatic components receive a single 2.2 gamma curve; brightness is then applied
+as a physical PWM multiplier, followed by optional per-channel gains and one final
+clamp/rounding step. Saturation/brightness/gains/visual modes never feed back
 into RNG conditioning. At most 32/255 reaches any LED channel.
 
 ## Independent analysis

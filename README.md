@@ -12,12 +12,14 @@ and matched control conditions. Psychokinetic influence is **not scientifically
 established**. This project makes the measurements and assumptions inspectable;
 it does not interpret unusual results as evidence of a particular cause.
 
-## Status: 0.1.0 hardware-validation candidate
+## Status: 0.2.0 hardware-validation candidate
 
 Implemented and cross-compiled with pinned **ESP-IDF 6.1**. Host C++ invariants,
 independent Python statistics/auditing, shell checks and real Chromium/Firefox
-browser workflows are supplied. Physical PCB revision, LED channel calibration,
-thermal/power measurements, and on-device acceptance remain required before a
+browser workflows are supplied. The 0.1.0 firmware has booted on the connected
+board and the user reports a working dashboard. PCB revision remains unknown;
+the 0.2.0 color update still needs authorized deployment and physical calibration.
+LED channel calibration, thermal/power measurements, and on-device acceptance remain required before a
 hardware-qualified release. See [validation](docs/validation.md).
 
 ## Features
@@ -34,6 +36,10 @@ hardware-qualified release. See [validation](docs/validation.md).
 - Offline audit, binomial tails, Wilson intervals, CSV/raw conversion and
   exploratory control comparisons using Python's standard library.
 - Responsive dark/light UI, entirely embedded in firmware.
+- Final-command RGB snapshots shared by RMT and API, with target/smoothed hue
+  labels, frame age and explicit optical limitations.
+- Guided RGB/GRB identification and seven-color user confirmation at 2% PWM;
+  persistent ordering and optional per-channel gains. [Color guide](docs/color-calibration.md).
 
 ## Quick start (Xubuntu / Ubuntu 24.04)
 
@@ -49,7 +55,8 @@ From the repository directory:
 
 The flashing tool builds, tests, probes the chip, asks you to check the physical
 model/revision, backs up the full flash, and requires explicit overwrite confirmation.
-**The initial development session did not flash the attached board.**
+Upgrades preserve the unchanged NVS/session partitions; export a stopped trial
+before deployment. Run the flash command only when you intend to authorize writing.
 
 After flashing, reset with the USB monitor open. Copy the unique WPA2 password
 and admin token from the `onboarding` messages. Connect to `OpenMindLamp-XXXXXX`,

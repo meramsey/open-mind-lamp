@@ -37,6 +37,7 @@ extern "C" void app_main() {
         const int64_t now=esp_timer_get_time();
         {
             Lock lock(app);
+            app.calibration.expire(now);
             if (revision!=app.revision) {
                 revision=app.revision; next_sample=now; next_commit=now+app.settings.accumulation_ms*1000LL;
                 app.walk.reset(app.settings.starting_hue);
@@ -63,15 +64,21 @@ extern "C" void app_main() {
                 app.walk.render((now-last_frame)/1000.0,app.settings.smoothing_ms);
                 last_frame=now; next_frame=now+1000000/app.settings.frame_hz;
                 Settings display=app.settings;
-                if (app.health.failed() || !entropy_ready()) display.enabled=false;
-                app.led_ok=matrix.show(display,app.walk.hue(),now/1e6,app.last_word,app.session.active());
+                const bool safe=!app.health.failed() && entropy_ready();
+                if (!safe) { display.enabled=false; app.calibration.interrupt(); }
+                const auto frame=app.calibration.active() ? app.calibration.frame(safe) :
+                    color_frame(display,app.walk.hue(),now/1e6,app.last_word,app.session.active());
+                app.led_ok=matrix.show(frame);
+                app.color.transmitted(frame,esp_timer_get_time(),app.led_ok);
+                if (app.led_ok) app.calibration.presented(frame.calibration_run,frame.calibration_step);
+                else app.calibration.interrupt();
                 if (!app.led_ok) { app.session.stop("led_failure"); ESP_LOGE("led","RMT refresh failed"); }
             }
         }
         if (!gpio_get_level(GPIO_NUM_0)) {
             if (!pressed) pressed=now;
             if (pressed>0 && now-pressed>=5000000) {
-                Lock lock(app); app.session.stop("network_recovery"); network_recover(); pressed=-1;
+                Lock lock(app); app.session.stop("network_recovery"); app.calibration.interrupt(); network_recover(); pressed=-1;
                 ESP_LOGI("recovery","Home Wi-Fi cleared; AP and data retained");
             }
         } else pressed=0;

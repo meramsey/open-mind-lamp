@@ -3,7 +3,15 @@
 ## Data path
 
 `active RF → esp_random() → unconditioned 32-bit word → health checks + raw recorder
-→ net-bit accumulation → hue target → time-based smoothing → gamma/HSV → RMT DMA`
+→ net-bit accumulation → hue target → time-based smoothing → mode selection
+→ HSV chromatic RGB → gamma once → PWM/gains/clamp → ColorFrame → RMT DMA`
+
+After a successful RMT refresh the same `ColorFrame` is stored in `RenderedColor`
+and serialized by `api/color_json.*`; the browser previews its final commanded
+RGB bytes. No separate browser HSL approximation is used. Failed transmissions
+mark the state unknown without replacing the last successful snapshot. Sparse
+mode masks, frame IDs, timestamps and age accompany the lit-pixel RGB command.
+Target, smoothed walk, and mode-selected logical hues are distinct concepts.
 
 Raw acquisition, statistical interpretation and rendering are separate. All 32
 bits contribute to the lamp; no modulo mapping or rejection removes samples.
@@ -33,7 +41,11 @@ sampling loop, so this is not a hard-real-time instrument.
   native USB is currently used as a device and host/power requirements differ.
 - `entropy/deterministic.hpp`: SplitMix64-derived test stream, test-only. Not
   included by production code; never suitable for an experimental hardware source.
-- `lighting/matrix.*`: manufacturer-specific pin/count, RMT DMA, modes and power cap.
+- `lighting/color.*`: allocation-free shared mode/color/mask frame builder and
+  successful-transmission snapshot. `lighting/matrix.*` only maps/transmits it.
+- `lighting/calibration.*`: user-observed RGB/GRB inference, seven-color
+  verification and explicit save/cancel/timeout state machine. Overrides are
+  temporary, at 2% PWM/unity gains; measurements cannot be recorded concurrently.
 - `networking/`: unique AP onboarding, optional STA, no-sleep RF entropy condition,
   retries, mDNS, recovery. AP remains enabled even without clients or Internet.
 - `storage/`: ESP-IDF NVS settings and secrets. Settings are version-keyed JSON,
@@ -42,6 +54,14 @@ sampling loop, so this is not a hard-real-time instrument.
 - `api/`: authenticated local HTTP API plus embedded static assets. Body length,
   nesting and duplicate top-level keys are bounded before processing.
 - `analysis/`: independent counts, audit, statistics and conversions, no dependencies.
+
+Calibration order and optional gains use the existing NVS settings document with
+backwards-compatible defaults. A prior saved order is never replaced just because
+its confirmation flag is missing. Only user-confirmed Save or an explicit manual
+ordering edit can change it. Native tests exercise production persistence through
+an NVS double and production rendering through a configured-GRB LED driver double;
+browser fixtures use the production frame serializer. Hardware optical acceptance
+is still a distinct requirement.
 
 ## Entropy and health
 

@@ -1,7 +1,7 @@
 idf_component_register(
-    SRCS "main.cpp" "lighting/core.cpp" "lighting/matrix.cpp"
+    SRCS "main.cpp" "lighting/core.cpp" "lighting/matrix.cpp" "lighting/color.cpp" "lighting/calibration.cpp"
          "storage/settings.cpp" "experiments/session.cpp"
-         "networking/network.cpp" "api/server.cpp"
+         "networking/network.cpp" "api/server.cpp" "api/color_json.cpp"
     INCLUDE_DIRS "."
     PRIV_REQUIRES esp_wifi esp_event esp_netif esp_http_server nvs_flash
                   esp_timer esp_driver_gpio esp_system esp_hw_support

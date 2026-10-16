@@ -25,10 +25,12 @@ cJSON* settings_json(const Settings& s) {
 #define NUM(field) cJSON_AddNumberToObject(j, #field, s.field)
     NUM(brightness); NUM(saturation); NUM(sensitivity); NUM(smoothing_ms);
     NUM(starting_hue); NUM(sample_hz); NUM(accumulation_ms); NUM(frame_hz); NUM(pixel);
+    NUM(gain_red); NUM(gain_green); NUM(gain_blue);
 #undef NUM
     cJSON_AddNumberToObject(j, "mode", static_cast<int>(s.mode));
     cJSON_AddBoolToObject(j, "enabled", s.enabled);
     cJSON_AddBoolToObject(j, "rgb_order", s.rgb_order);
+    cJSON_AddBoolToObject(j, "channel_order_confirmed", s.channel_order_confirmed);
     return j;
 }
 bool patch_settings(const cJSON* j, Settings& output) {
@@ -41,8 +43,9 @@ bool patch_settings(const cJSON* j, Settings& output) {
 #define INTEGER(field) if (!std::strcmp(item->string, #field)) { if (!cJSON_IsNumber(item) || !std::isfinite(item->valuedouble) || item->valuedouble<0 || item->valuedouble>60000 || std::floor(item->valuedouble)!=item->valuedouble) return false; s.field=static_cast<uint32_t>(item->valuedouble); continue; }
 #define BOOL(field) if (!std::strcmp(item->string, #field)) { if (!cJSON_IsBool(item)) return false; s.field=cJSON_IsTrue(item); continue; }
         DOUBLE(brightness) DOUBLE(saturation) DOUBLE(sensitivity) DOUBLE(smoothing_ms) DOUBLE(starting_hue)
+        DOUBLE(gain_red) DOUBLE(gain_green) DOUBLE(gain_blue)
         INTEGER(sample_hz) INTEGER(accumulation_ms) INTEGER(frame_hz) INTEGER(pixel)
-        BOOL(enabled) BOOL(rgb_order)
+        BOOL(enabled) BOOL(rgb_order) BOOL(channel_order_confirmed)
 #undef DOUBLE
 #undef INTEGER
 #undef BOOL
@@ -66,6 +69,7 @@ Settings load_settings() {
     return s;
 }
 bool save_settings(const Settings& s) {
+    if (!valid(s)) return false;
     cJSON* j=settings_json(s);
     char* text=cJSON_PrintUnformatted(j);
     const bool ok=text && write_secret("settings_v1", text);
