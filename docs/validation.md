@@ -39,7 +39,10 @@
   confirmation remains outstanding. Follow [color calibration](color-calibration.md).
 
 Host tests do not establish that the physical hardware has passed acceptance.
-GitHub workflows are supplied but have not been executed on GitHub by this agent.
+For color checkpoint `96d9df0`, both GitHub workflows completed successfully:
+[firmware cross-build](https://github.com/meramsey/open-mind-lamp/actions/runs/38902666236)
+and [host/browser tests](https://github.com/meramsey/open-mind-lamp/actions/runs/38902666684).
+These validate code/build behavior, not the physical color observations.
 
 ## Required physical acceptance before a hardware-qualified release
 
