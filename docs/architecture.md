@@ -31,6 +31,14 @@ frame; `fprintf` uses a bounded record format and libc buffering. JSON allocatio
 is confined to boot/API/session header operations. SPIFFS writes happen in the
 sampling loop, so this is not a hard-real-time instrument.
 
+A 128-event fixed RAM ring records successful hardware acquisitions and window
+commits, with no sampling-path allocation/flash log. Read-only status diagnostics
+use actual `Walk` accumulator/commit fields. An explicit trace GET copies the
+ring once under lock and streams it outside the lock. Successful frame snapshots
+also retain exact smoothing inputs/output for independent replay. The dashboard
+uses its existing poll; only an explicitly invoked bounded host verifier fetches
+raw events. These diagnostics are never experiment records.
+
 ## Modules
 
 - `lighting/core.*`: portable settings validation, HSV conversion, random walk,
@@ -68,7 +76,10 @@ is still a distinct requirement.
 Espressif guarantees the documented physical entropy conditions when RF is active
 or the SAR entropy source is explicitly enabled. The lamp keeps AP active,
 disables Wi-Fi power save and never enters light/deep sleep. Sampling is gated
-on the AP-start/stop events. Early first-boot secret generation temporarily uses
+on the AP-start/stop events and actual AP/APSTA + WIFI_PS_NONE readback before
+and after each hardware RNG read; rejected reads are counted without becoming
+measurements. Fast scheduler/display gates use the cached checked profile.
+Power-management and fixed-pattern RNG bring-up builds are rejected. Early first-boot secret generation temporarily uses
 `bootloader_random_enable()`, then **disables it before Wi-Fi initialization**.
 Do not add ADC use or sleep without reviewing the entropy contract.
 

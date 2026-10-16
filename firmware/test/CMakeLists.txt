@@ -20,7 +20,7 @@ FetchContent_Declare(cjson
 FetchContent_MakeAvailable(cjson)
 add_library(color_test_support STATIC
     ../main/lighting/core.cpp ../main/lighting/color.cpp ../main/lighting/calibration.cpp
-    ../main/lighting/matrix.cpp ../main/api/color_json.cpp ../main/storage/settings.cpp
+    ../main/lighting/matrix.cpp ../main/api/color_json.cpp ../main/api/rng_json.cpp ../main/storage/settings.cpp
     platform.cpp)
 target_compile_features(color_test_support PUBLIC cxx_std_17)
 target_include_directories(color_test_support PUBLIC stubs ../main ${cjson_SOURCE_DIR})
@@ -32,3 +32,8 @@ target_link_libraries(color_test PRIVATE color_test_support)
 add_test(NAME color COMMAND color_test)
 add_executable(color_fixture color_fixture.cpp)
 target_link_libraries(color_fixture PRIVATE color_test_support)
+add_executable(pipeline_test pipeline_test.cpp)
+target_link_libraries(pipeline_test PRIVATE color_test_support)
+add_test(NAME entropy_pipeline COMMAND pipeline_test)
+add_executable(pipeline_fixture pipeline_fixture.cpp)
+target_link_libraries(pipeline_fixture PRIVATE color_test_support)

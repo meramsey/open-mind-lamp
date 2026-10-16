@@ -45,7 +45,9 @@ the chip marking and the official schematic used. Do not invent a revision.
 - **Silicon revision v0.2 is not the PCB revision.** The user identifies the
   model as ESP32-S3-Matrix; the physical PCB revision is unmarked/unknown, not
   confirmed as any specific revision. The user reports operating LEDs/dashboard
-  after the initial flash. Physical color ordering remains unconfirmed.
+  after the initial flash. The user subsequently deployed 0.2.0 and confirmed
+  successful physical RGB/GRB calibration. Preserve that saved order/gains;
+  the RNG diagnostics do not require recalibration or guessing the order again.
 
 ## ESP-IDF profile
 

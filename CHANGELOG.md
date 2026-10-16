@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.1 — live entropy-to-LED verification
+
+- Read-only live sample bit counts, pending/committed movement, target/rendered
+  hues, render-step inputs and commanded RGB through the existing status poll.
+- Fixed 128-event RAM sample/commit ring and authenticated streaming trace GET;
+  bounded host collection/replay without changing settings or experiment data.
+- Gate accepted hardware reads before/after acquisition on AP readiness, actual
+  AP/APSTA mode and WIFI_PS_NONE; reject automatic PM/fixed-pattern RNG builds.
+- Timestamp acquisition after the RNG read and scheduler decisions after taking
+  the API mutex, avoiding stale pre-lock acquisition timestamps.
+- Native known-sequence full-pipeline tests and independent Python replay detect
+  target/render/RGB mismatches, gaps, resets, readiness rejection and mode overrides.
+- Preserve the user's confirmed 0.2.0 physical calibration. No new flash performed.
+
 ## 0.2.0 — color synchronization and user-observed calibration
 
 - Replace the fixed-HSL browser swatch with the final transmitted RGB command,

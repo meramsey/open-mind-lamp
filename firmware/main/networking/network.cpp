@@ -9,14 +9,19 @@
 #include "esp_timer.h"
 #include "bootloader_random.h"
 #include "mdns.h"
+#include "sdkconfig.h"
 #include <atomic>
 #include <cstring>
 #include <cstdio>
 namespace oml {
+#if defined(CONFIG_PM_ENABLE)
+#error "Open Mind Lamp RF entropy profile requires power management disabled"
+#endif
 static std::atomic<bool> ap_running{false}, connected{false}, station_enabled{false};
 static esp_timer_handle_t retry_timer;
 static char token[65], ap_password[25], ssid[33], hostname[33];
 static esp_netif_t* sta_netif;
+static std::atomic<bool> no_sleep_configured{false}, profile_ready{false};
 static void events(void*,esp_event_base_t base,int32_t id,void*) {
     if (base==WIFI_EVENT) {
         if (id==WIFI_EVENT_AP_START) ap_running=true;
@@ -39,7 +44,14 @@ static void secret(const char* key,char* output,size_t bytes) {
     for (size_t i=0;i<bytes;++i) std::snprintf(output+2*i,3,"%02x",random[i]);
     ESP_ERROR_CHECK(write_secret(key,output)?ESP_OK:ESP_FAIL);
 }
-bool entropy_ready() { return ap_running.load(); }
+bool entropy_ready() { return ap_running.load() && no_sleep_configured.load() && profile_ready.load(); }
+bool entropy_ready_checked() {
+    wifi_mode_t mode=WIFI_MODE_NULL; wifi_ps_type_t ps=WIFI_PS_MIN_MODEM;
+    const bool ready=ap_running.load() && no_sleep_configured.load() &&
+        esp_wifi_get_mode(&mode)==ESP_OK && (mode==WIFI_MODE_AP || mode==WIFI_MODE_APSTA) &&
+        esp_wifi_get_ps(&ps)==ESP_OK && ps==WIFI_PS_NONE;
+    profile_ready=ready; return ready;
+}
 const char* admin_token() { return token; }
 void network_init() {
     // Early first-boot secrets get physical entropy before RF is started.
@@ -64,6 +76,7 @@ void network_init() {
     ap.ap.authmode=WIFI_AUTH_WPA2_PSK; ap.ap.pmf_cfg.capable=true;
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP,&ap));
     ESP_ERROR_CHECK(esp_wifi_start()); ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+    no_sleep_configured=true;
     char saved[256];
     if (read_secret("wifi_v1",saved,sizeof(saved))) {
         cJSON* j=cJSON_Parse(saved); network_configure(j); cJSON_Delete(j);
@@ -106,7 +119,12 @@ cJSON* network_status() {
     if (connected && esp_netif_get_ip_info(sta_netif,&info)==ESP_OK) std::snprintf(ip,sizeof(ip),IPSTR,IP2STR(&info.ip));
     cJSON_AddStringToObject(j,"ap_ssid",ssid); cJSON_AddStringToObject(j,"ap_ip","192.168.4.1");
     cJSON_AddStringToObject(j,"hostname",hostname); cJSON_AddStringToObject(j,"station_ip",ip);
-    cJSON_AddBoolToObject(j,"connected",connected.load()); cJSON_AddBoolToObject(j,"rf_entropy_ready",entropy_ready());
+    cJSON_AddBoolToObject(j,"connected",connected.load()); cJSON_AddBoolToObject(j,"rf_entropy_ready",entropy_ready_checked());
+    cJSON_AddBoolToObject(j,"ap_started",ap_running.load());
+    wifi_mode_t mode=WIFI_MODE_NULL; wifi_ps_type_t ps=WIFI_PS_MIN_MODEM;
+    const bool mode_ok=esp_wifi_get_mode(&mode)==ESP_OK, ps_ok=esp_wifi_get_ps(&ps)==ESP_OK;
+    cJSON_AddStringToObject(j,"wifi_mode",mode_ok && mode==WIFI_MODE_APSTA ? "APSTA" : mode_ok && mode==WIFI_MODE_AP ? "AP" : "other_or_unavailable");
+    cJSON_AddBoolToObject(j,"power_save_none",ps_ok && ps==WIFI_PS_NONE);
     return j;
 }
 }

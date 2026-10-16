@@ -4,6 +4,7 @@ namespace oml {
 ColorFrame color_frame(const Settings& s, double hue, double seconds,
                        uint32_t activity, bool active) {
     ColorFrame frame;
+    frame.walk_hue=wrap(hue);
     frame.mode=s.mode; frame.rgb_order=s.rgb_order;
     frame.brightness=s.enabled ? s.brightness : 0;
     frame.saturation=s.saturation;

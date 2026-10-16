@@ -33,16 +33,39 @@ RGB hsv(double hue, double saturation, double brightness,
 // Driver is configured GRB. Adapt library arguments once for an RGB physical chain.
 RGB driver_rgb(RGB commanded, bool rgb_order);
 RGB wire_bytes(RGB commanded, bool rgb_order);
+struct WalkCommit {
+    uint64_t window_id = 0;
+    uint32_t samples = 0;
+    int32_t net = 0;
+    double before = 180, after = 180, movement_deg = 0;
+};
+struct WalkRender {
+    double before=0, target=0, dt_ms=0, smoothing_ms=0, after=0;
+};
 class Walk {
     double target_ = 180, rendered_ = 180;
     int32_t accumulated_ = 0;
+    uint32_t pending_samples_ = 0;
+    uint64_t window_id_ = 0;
+    WalkCommit last_commit_;
 public:
-    void reset(double hue) { target_ = rendered_ = wrap(hue); accumulated_ = 0; }
-    void sample(uint32_t word) { accumulated_ += net_bits(word); }
-    void commit(double sensitivity) { target_ = wrap(target_ + sensitivity * accumulated_); accumulated_ = 0; }
-    void render(double dt_ms, double smoothing_ms);
+    void reset(double hue) {
+        target_ = rendered_ = wrap(hue); accumulated_ = 0; pending_samples_=0; window_id_=0;
+        last_commit_={0,0,0,target_,target_,0};
+    }
+    void sample(uint32_t word) { accumulated_ += net_bits(word); ++pending_samples_; }
+    WalkCommit commit(double sensitivity) {
+        last_commit_={window_id_,pending_samples_,accumulated_,target_,0,sensitivity*accumulated_};
+        target_=wrap(target_+last_commit_.movement_deg); last_commit_.after=target_;
+        accumulated_=0; pending_samples_=0; ++window_id_; return last_commit_;
+    }
+    WalkRender render(double dt_ms, double smoothing_ms);
     double hue() const { return rendered_; }
     double target() const { return target_; }
+    int32_t pending_net() const { return accumulated_; }
+    uint32_t pending_samples() const { return pending_samples_; }
+    uint64_t window_id() const { return window_id_; }
+    const WalkCommit& last_commit() const { return last_commit_; }
 };
 // Latching gross-failure indicators, not certification or an entropy estimator.
 class Health {

@@ -13,5 +13,7 @@ CONFIG_HTTPD_MAX_URI_LEN=128
 CONFIG_ESP_TASK_WDT_EN=y
 CONFIG_ESP_TASK_WDT_INIT=y
 CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
+# RF entropy profile: no automatic light sleep or dynamic power management.
+# CONFIG_PM_ENABLE is not set
 # PSRAM is deliberately optional; this firmware fits internal SRAM.
 # CONFIG_SPIRAM is not set

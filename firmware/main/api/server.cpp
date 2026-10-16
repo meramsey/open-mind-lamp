@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "color_json.hpp"
+#include "rng_json.hpp"
 #include "networking/network.hpp"
 #include "esp_http_server.h"
 #include "esp_app_desc.h"
@@ -7,6 +8,10 @@
 #include "esp_timer.h"
 #include <cstring>
 #include <cstdio>
+#include <cerrno>
+#include <cstdlib>
+#include <memory>
+#include <new>
 namespace oml {
 extern const unsigned char index_start[] asm("_binary_index_html_start");
 extern const unsigned char index_end[] asm("_binary_index_html_end");
@@ -42,6 +47,30 @@ static esp_err_t json(httpd_req_t* r,cJSON* data) {
     if (!text) return fail(r,"500 Internal Server Error","{\"error\":\"allocation failure\"}");
     httpd_resp_set_type(r,"application/json"); auto result=httpd_resp_send(r,text,HTTPD_RESP_USE_STRLEN);
     cJSON_free(text); return result;
+}
+static esp_err_t send_trace(httpd_req_t* r,const TraceSnapshot& s,uint64_t after) {
+    auto* metadata=trace_metadata_json(s);
+    if (!metadata) return fail(r,"500 Internal Server Error","{\"error\":\"trace metadata allocation failed\"}");
+    char* header=cJSON_PrintUnformatted(metadata); cJSON_Delete(metadata);
+    if (!header) return fail(r,"500 Internal Server Error","{\"error\":\"trace serialization failed\"}");
+    httpd_resp_set_type(r,"application/json");
+    // Stream one bounded event at a time rather than allocating a 128-node tree.
+    auto result=httpd_resp_send_chunk(r,header,std::strlen(header)-1); cJSON_free(header);
+    if (result!=ESP_OK || httpd_resp_send_chunk(r,",\"events\":[",11)!=ESP_OK) return ESP_FAIL;
+    bool first=true;
+    for (uint64_t seq=s.rng.oldest();seq<=s.rng.sequence;++seq) {
+        if (seq<=after) continue;
+        auto* event=trace_event_json(s.rng.events[(seq-1)%RngDiagnostics::capacity]);
+        if (!event) return ESP_FAIL;
+        char text[384]; const bool encoded=cJSON_PrintPreallocated(event,text,sizeof(text),false);
+        cJSON_Delete(event);
+        if (!encoded) return ESP_FAIL;
+        if (!first && httpd_resp_send_chunk(r,",",1)!=ESP_OK) return ESP_FAIL;
+        if (httpd_resp_send_chunk(r,text,std::strlen(text))!=ESP_OK) return ESP_FAIL;
+        first=false;
+    }
+    if (httpd_resp_send_chunk(r,"]}",2)!=ESP_OK) return ESP_FAIL;
+    return httpd_resp_send_chunk(r,nullptr,0);
 }
 static bool authorized(httpd_req_t* r) {
     char auth[80]={};
@@ -81,6 +110,28 @@ static esp_err_t get(httpd_req_t* r) {
     if(!std::strcmp(r->uri,"/src/app.js")) { httpd_resp_set_type(r,"text/javascript; charset=utf-8"); return httpd_resp_send(r,reinterpret_cast<const char*>(js_start),js_end-js_start); }
     if(!std::strcmp(r->uri,"/src/style.css")) { httpd_resp_set_type(r,"text/css; charset=utf-8"); return httpd_resp_send(r,reinterpret_cast<const char*>(css_start),css_end-css_start); }
     if(!authorized(r)) return fail(r,"401 Unauthorized","{\"error\":\"USB onboarding token required\"}");
+    if(!std::strcmp(r->uri,"/api/rng/trace") || !std::strncmp(r->uri,"/api/rng/trace?",15)) {
+        uint64_t after=0;
+        if (httpd_req_get_url_query_len(r)) {
+            char query[64], value[24];
+            if (httpd_req_get_url_query_str(r,query,sizeof(query))!=ESP_OK ||
+                httpd_query_key_value(query,"after",value,sizeof(value))!=ESP_OK ||
+                !value[0] || std::strspn(value,"0123456789")!=std::strlen(value))
+                return fail(r,"400 Bad Request","{\"error\":\"after must be an unsigned sequence number\"}");
+            errno=0; after=std::strtoull(value,nullptr,10);
+            if (errno==ERANGE) return fail(r,"400 Bad Request","{\"error\":\"after overflow\"}");
+        }
+        std::unique_ptr<TraceSnapshot> s(new (std::nothrow) TraceSnapshot);
+        if (!s) return fail(r,"500 Internal Server Error","{\"error\":\"trace snapshot allocation failed\"}");
+        {
+            Lock lock(*app);
+            s->rng=app->rng; s->walk=app->walk; s->settings=app->settings; s->health=app->health;
+            s->color=app->color; s->latest_word=app->last_word; s->revision=app->revision;
+            s->ready=entropy_ready_checked(); s->calibration_active=app->calibration.active();
+            s->experiment_active=app->session.active(); s->now_us=esp_timer_get_time();
+        }
+        return send_trace(r,*s,after);
+    }
     if(!std::strcmp(r->uri,"/api/export")) {
         FILE* file;
         { Lock lock(*app);
@@ -100,7 +151,7 @@ static esp_err_t get(httpd_req_t* r) {
     if(!std::strcmp(r->uri,"/api/status")) {
         cJSON* j=cJSON_CreateObject();
         cJSON_AddStringToObject(j,"version",esp_app_get_description()->version);
-        cJSON_AddStringToObject(j,"source","esp32s3-hwrng-rf-no-sleep");
+        cJSON_AddStringToObject(j,"source",hardware_source_name);
         cJSON_AddNumberToObject(j,"uptime_s",esp_timer_get_time()/1e6);
         cJSON_AddNumberToObject(j,"free_heap",esp_get_free_heap_size());
         cJSON_AddNumberToObject(j,"min_heap",esp_get_minimum_free_heap_size());
@@ -108,6 +159,7 @@ static esp_err_t get(httpd_req_t* r) {
         const auto now=esp_timer_get_time();
         cJSON_AddItemToObject(j,"color",color_json(app->color,now));
         cJSON_AddItemToObject(j,"calibration",calibration_json(app->calibration,app->settings,now));
+        cJSON_AddItemToObject(j,"rng",rng_json(app->rng,app->walk,app->settings,app->health,app->last_word,entropy_ready_checked(),now));
         cJSON_AddNumberToObject(j,"rng_words",static_cast<double>(app->health.words));
         cJSON_AddNumberToObject(j,"rng_ones",static_cast<double>(app->health.ones));
         cJSON_AddNumberToObject(j,"missed_slots",static_cast<double>(app->missed_slots));
@@ -161,7 +213,7 @@ static esp_err_t post(httpd_req_t* r) {
             error="Refresh status before cancelling this calibration run";
         } else if(!std::strcmp(r->uri,"/api/session/start")) {
             if(!app->calibration.active() && !app->health.failed() && entropy_ready() && app->led_ok) {
-                ok=app->session.start(j,app->settings,"esp32s3-hwrng-rf-no-sleep",app->settings.starting_hue);
+                ok=app->session.start(j,app->settings,hardware_source_name,app->settings.starting_hue);
                 if(ok) ++app->revision;
             }
             error="Export and clear previous trial; provide condition, direction, protocol, samples and client_utc; RNG must be healthy";

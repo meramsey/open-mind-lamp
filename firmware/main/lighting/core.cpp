@@ -38,9 +38,11 @@ RGB hsv(double h, double s, double v, double red, double green, double blue) {
 }
 RGB driver_rgb(RGB c, bool rgb_order) { return rgb_order ? RGB{c.g,c.r,c.b} : c; }
 RGB wire_bytes(RGB c, bool rgb_order) { return rgb_order ? c : RGB{c.g,c.r,c.b}; }
-void Walk::render(double dt, double tau) {
+WalkRender Walk::render(double dt, double tau) {
+    WalkRender step{rendered_,target_,dt,tau,0};
     const double delta = wrap(target_ - rendered_ + 180) - 180;
     rendered_ = wrap(rendered_ + delta * (tau <= 0 ? 1 : -std::expm1(-dt/tau)));
+    step.after=rendered_; return step;
 }
 bool Health::observe(uint32_t word) {
     ++words;

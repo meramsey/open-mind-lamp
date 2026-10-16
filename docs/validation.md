@@ -35,8 +35,14 @@
 - Chromium/Firefox regressions feed actual C++-serialized frame fixtures into the
   dashboard, check raw CSS RGB including breathing/off/failure states, confirm
   the observation/save interaction and test delayed polling/mutation races.
-- The 0.2.0 color update is **not flashed** by the development task. Physical color
-  confirmation remains outstanding. Follow [color calibration](color-calibration.md).
+- The user subsequently flashed 0.2.0 and confirmed physical RGB/GRB calibration
+  successfully. That saved configuration is authoritative and is not recalibrated
+  or replaced by the entropy-verification work. PCB revision remains unknown.
+- 0.2.1 adds a native known-sequence test of the production hardware wrapper/walk/
+  smoothing/RMT/API chain, independent raw-window/frame replay and dashboard RNG
+  diagnostics coverage. It has not been flashed by this task; an actual bounded
+  hardware trace still requires authorized deployment and the procedure in
+  [rng-validation.md](rng-validation.md).
 
 Host tests do not establish that the physical hardware has passed acceptance.
 For color checkpoint `96d9df0`, both GitHub workflows completed successfully:
@@ -50,11 +56,13 @@ These validate code/build behavior, not the physical color observations.
    Waveshare ESP32-S3-Matrix; record revision or explicitly record unmarked.
 2. Run `./tools/flash.sh`, review detected identity, retain backup and explicitly
    confirm overwriting the target. Initial 0.1.0 deployment is complete; deployment
-   of the new color update needs fresh explicit authorization.
+   of subsequent updates needs fresh explicit authorization.
 3. Monitor boot. Check AP credentials unique and repeatable across reboot, entropy
    readiness, RMT initialization, storage state and stable heap. Initialize storage
    explicitly only if previous partition contents prevent first mount.
-4. Run the guided 2%-PWM primary identification and seven-color verification pass
+4. Physical calibration was reported successful by the user on 0.2.0; retain it.
+   For a different physical board or an explicitly requested recalibration, run
+   the guided 2%-PWM primary identification and seven-color verification pass
    described in [color-calibration.md](color-calibration.md); explicitly save only
    after observing red/green/blue/white/yellow/cyan/magenta physically matching.
    Verify all 64 chain indices/orientation; record any difference from official demo.

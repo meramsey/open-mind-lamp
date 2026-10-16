@@ -80,6 +80,34 @@ function showState(state) {
     const dt = document.createElement('dt'), dd = document.createElement('dd');
     dt.textContent = key; dd.textContent = value; return [dt, dd];
   }));
+  const rng = state.rng;
+  if (rng) {
+    const modes = ['Fixed ambient', 'Random Walk', 'Walk + timed breathing brightness',
+      'Walk + single pixel', 'Fixed manual calibration', 'Walk + RNG activity mask', 'Fixed experiment status'];
+    $('rng-mode').textContent = state.calibration.active ? 'Guided calibration overrides the walk display.' :
+      `${modes[color.mode]}${!color.lit_pixels ? ' · output is black' : ''}. Use Random Walk (mode 1), LEDs enabled, for the live causality test.`;
+    const values = {
+      'Source / readiness': `${rng.source} · ${rng.ready ? 'ready (RF contract)' : 'NOT READY'}`,
+      'Successful hardware samples': rng.successful_samples,
+      'Rejected readiness reads': rng.rejected_reads,
+      'Latest 32-bit word': rng.latest_word == null ? 'No samples yet' : rng.latest_word_hex,
+      'Latest word ones / zeros': rng.latest_word == null ? '—' : `${rng.ones} / ${rng.zeros}`,
+      'Latest net contribution': rng.latest_word == null ? '—' : `${rng.net >= 0 ? '+' : ''}${rng.net} net bits${rng.latest_applied ? ' (applied)' : ' (not applied)'}`,
+      'Current window': `${rng.window_id} · ${rng.window_samples} words · net ${rng.window_net}`,
+      'Pending target movement': `${rng.pending_movement_deg.toFixed(3)}°`,
+      'Last committed movement': rng.last_commit.valid ? `${rng.last_commit.movement_deg.toFixed(3)}° from ${rng.last_commit.samples} words` : 'None yet',
+      'Target / smoothed hue': `${rng.target_hue.toFixed(3)}° / ${rng.smoothed_hue.toFixed(3)}°`,
+      'Frame walk / logical hue': `${color.walk_hue?.toFixed(3) ?? '—'}° / ${color.logical_hue.toFixed(3)}°`,
+      'Final commanded RGB': color.commanded_rgb.join(', '),
+      'Frame / transmission': `${color.frame_id} · ${color.valid ? 'successful command' : 'UNKNOWN'}`,
+      'RNG health': rng.health_failed ? 'LATCHED FAILURE; sampling halted' : 'No gross failure observed',
+      'Three separate clocks': `${rng.sample_hz} words/s · ${rng.accumulation_ms} ms/window · ${rng.frame_hz} frames/s`
+    };
+    $('rng-diagnostics').replaceChildren(...Object.entries(values).flatMap(([key, value]) => {
+      const dt = document.createElement('dt'), dd = document.createElement('dd');
+      dt.textContent = key; dd.textContent = value; return [dt, dd];
+    }));
+  } else $('rng-mode').textContent = 'Live RNG diagnostics require firmware 0.2.1 or later.';
   const s = state.session;
   $('session').textContent = `${s.reason} · ${s.count} / ${s.planned} words${s.id ? ` · ${s.id}` : ''}`;
   $('lamp-fields').disabled = s.active || state.calibration.active;

@@ -12,14 +12,15 @@ and matched control conditions. Psychokinetic influence is **not scientifically
 established**. This project makes the measurements and assumptions inspectable;
 it does not interpret unusual results as evidence of a particular cause.
 
-## Status: 0.2.0 hardware-validation candidate
+## Status: 0.2.1 hardware-validation candidate
 
 Implemented and cross-compiled with pinned **ESP-IDF 6.1**. Host C++ invariants,
 independent Python statistics/auditing, shell checks and real Chromium/Firefox
 browser workflows are supplied. The 0.1.0 firmware has booted on the connected
-board and the user reports a working dashboard. PCB revision remains unknown;
-the 0.2.0 color update still needs authorized deployment and physical calibration.
-LED channel calibration, thermal/power measurements, and on-device acceptance remain required before a
+board. The user subsequently deployed 0.2.0 and confirmed physical channel-order
+calibration; that saved calibration remains authoritative. PCB revision remains
+unknown. The 0.2.1 live-entropy diagnostics await authorized deployment and bounded
+hardware validation. Thermal/power measurements and broader acceptance remain required before a
 hardware-qualified release. See [validation](docs/validation.md).
 
 ## Features
@@ -40,6 +41,8 @@ hardware-qualified release. See [validation](docs/validation.md).
   labels, frame age and explicit optical limitations.
 - Guided RGB/GRB identification and seven-color user confirmation at 2% PWM;
   persistent ordering and optional per-channel gains. [Color guide](docs/color-calibration.md).
+- Read-only live RNG/window/render diagnostics and a bounded RAM trace with an
+  independent causality verifier. [Entropy-to-LED validation](docs/rng-validation.md).
 
 ## Quick start (Xubuntu / Ubuntu 24.04)
 

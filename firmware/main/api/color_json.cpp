@@ -16,6 +16,15 @@ cJSON* color_json(const RenderedColor& state, int64_t now) {
     cJSON_AddNumberToObject(j,"age_ms",std::max<int64_t>(0,now-state.rendered_at_us)/1000.0);
     cJSON_AddStringToObject(j,"meaning","last successfully transmitted command; not optically measured");
     cJSON_AddNumberToObject(j,"logical_hue",f.logical_hue);
+    cJSON_AddNumberToObject(j,"walk_hue",f.walk_hue);
+    if (state.render_tracked) {
+        auto* step=cJSON_AddObjectToObject(j,"render_step");
+        cJSON_AddNumberToObject(step,"before",state.render_step.before);
+        cJSON_AddNumberToObject(step,"target",state.render_step.target);
+        cJSON_AddNumberToObject(step,"dt_ms",state.render_step.dt_ms);
+        cJSON_AddNumberToObject(step,"smoothing_ms",state.render_step.smoothing_ms);
+        cJSON_AddNumberToObject(step,"after",state.render_step.after);
+    }
     cJSON_AddNumberToObject(j,"saturation",f.saturation); cJSON_AddNumberToObject(j,"brightness",f.brightness);
     cJSON_AddNumberToObject(j,"mode",static_cast<unsigned>(f.mode));
     rgb(j,"logical_rgb",f.logical_rgb); rgb(j,"commanded_rgb",f.commanded_rgb);

@@ -14,6 +14,7 @@ must be integral. Responses are JSON except NDJSON export. All responses use
 | Method | Route | Behavior |
 |---|---|---|
 | GET | `/api/status` | Firmware, uptime, hue/target, heap health, RNG word/ones totals, health latch, missed slots, LED status, network and session |
+| GET | `/api/rng/trace?after=N` | Read-only RAM trace after sequence N (default 0); no capture control or data writes |
 | GET | `/api/settings` | Saved/active settings below |
 | POST | `/api/settings` | Apply partial settings patch and persist; explicitly restart walk; denied during trial |
 | POST | `/api/session/start` | Start fixed-N recording; prior saved trial must be exported/cleared |
@@ -90,6 +91,35 @@ These RGB values are commanded output, **not optically measured light**. The
 browser copies `commanded_rgb` into CSS directly and keeps polling at 1500 ms,
 with one in-flight status request. Snapshot age grows locally between responses;
 animated colors can move between samples. No RNG/color prediction is performed.
+
+## Live RNG diagnostics (0.2.1)
+
+`/api/status.rng` adds source/readiness, successful acquisition count, readiness
+rejection count, latest unsigned word/hex, ones/zeros/net, whether applied, acquisition
+timestamp/age, current window ID/sample count/net/pending degrees, last commit
+before/after/net/movement, target/smoothed hue, health latch and the three rates.
+Before the first successful acquisition, `latest_word` is null. A successful
+acquisition includes the health-triggering word; `latest_applied:false` distinguishes
+it from a healthy word passed to the walk. IDs/secrets/radio-internal RNG calls
+are not lamp measurement samples.
+
+`color.walk_hue` is the exact walk hue passed to the frame builder, before mode
+overrides. `color.render_step` gives before/target/dt_ms/smoothing_ms/after for the
+actual successful frame's `Walk::render()` call. It is retained with the frame,
+not recomputed from the current clock. `network` adds `ap_started`, `wifi_mode`
+and `power_save_none`; readiness checks driver readback at each acquisition boundary.
+
+Trace responses contain schema/type/source/boot ID/settings revision, lamp settings,
+RNG and color snapshots, oldest/latest event sequences, capacity and `events`.
+Events are reset/sample/commit: samples include exact SDK-return words and applied
+flags; commits include window count/net and target before/after. Records older
+than the 128-event RAM ring or latest reset are unavailable; consumers must detect
+sequence gaps. Serialization streams from a copied snapshot outside the sampling
+mutex. No flash/experiment storage or calibration is touched. There is no write
+endpoint, deterministic-injection option or dashboard background trace polling.
+
+See [bounded live validation](rng-validation.md) for the read-only collector,
+independent replay, correct display mode and limits of physical entropy claims.
 
 Example:
 

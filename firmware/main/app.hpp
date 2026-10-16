@@ -1,6 +1,7 @@
 #pragma once
 #include "lighting/core.hpp"
 #include "lighting/calibration.hpp"
+#include "entropy/diagnostics.hpp"
 #include "experiments/session.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -11,6 +12,7 @@ struct App {
     RenderedColor color;
     Calibration calibration;
     Health health;
+    RngDiagnostics rng;
     Session session;
     SemaphoreHandle_t mutex = nullptr;
     uint32_t last_word = 0;
