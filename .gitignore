@@ -1,0 +1,12 @@
+.tools/
+.venv/
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/managed_components/
+__pycache__/
+*.pyc
+backups/
+*.log
+web/test-results/
+release/

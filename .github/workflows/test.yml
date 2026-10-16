@@ -1,0 +1,21 @@
+name: Host and browser tests
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test native core, analysis and scripts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck cmake build-essential
+          ./tools/test.sh
+      - name: Install browser-test dependencies
+        run: |
+          python3 -m venv .tools/web-venv
+          .tools/web-venv/bin/python -m pip install -r web/tests/requirements.txt
+          .tools/web-venv/bin/python -m playwright install-deps chromium firefox
+      - name: Test Chromium and Firefox desktop/mobile layouts
+        run: ./tools/test-web.sh

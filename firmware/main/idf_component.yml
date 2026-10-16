@@ -1,0 +1,8 @@
+version: "0.1.0"
+description: "Open Mind Lamp original application component"
+license: "MIT"
+dependencies:
+  idf: "==6.1.0"
+  espressif/led_strip: "==3.0.3"
+  espressif/mdns: "==1.11.0"
+  espressif/cjson: "==1.7.19~2"

@@ -1,0 +1,25 @@
+name: Firmware build
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  esp32s3:
+    runs-on: ubuntu-24.04
+    container: espressif/idf:v6.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cross-compile pinned firmware
+        shell: bash
+        run: |
+          source /opt/esp/idf/export.sh
+          idf.py -C firmware build
+          idf.py -C firmware size
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-mind-lamp-build-candidate
+          path: |
+            firmware/build/open-mind-lamp.bin
+            firmware/build/open-mind-lamp.elf
+            firmware/build/bootloader/bootloader.bin
+            firmware/build/partition_table/partition-table.bin
+            firmware/dependencies.lock
